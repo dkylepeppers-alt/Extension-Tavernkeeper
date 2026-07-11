@@ -102,14 +102,16 @@ async function applyLorebook(item) {
     const sourceEntries = Array.isArray(item.data.entries) ? item.data.entries : Object.values(item.data.entries);
 
     const existing = await loadBookOrNull(name);
+    // loadWorldInfo can return an empty shell for a missing book — count entries instead.
+    const isNew = !existing || Object.keys(existing.entries ?? {}).length === 0;
     const bookData = existing ? structuredClone(existing) : { entries: {} };
     for (const entrySource of sourceEntries) {
         appendEntry(bookData, entrySource);
     }
     await ctx.saveWorldInfo(name, bookData, true);
-    if (!existing) await worldInfoModule.updateWorldInfoList();
+    if (isNew) await worldInfoModule.updateWorldInfoList();
     ctx.reloadWorldInfoEditor?.(name, false);
-    const verb = existing ? `Merged ${sourceEntries.length} entries into existing` : `Created`;
+    const verb = isNew ? `Created` : `Merged ${sourceEntries.length} entries into existing`;
     return { ok: true, message: `${verb} lorebook "${name}" (${sourceEntries.length} entries) — manage under World Info` };
 }
 

@@ -92,6 +92,10 @@ export function decorateMessage(mesId) {
         const html = DOMPurify.sanitize(renderActionCard(mesId, item, state[item.hash]));
         if (existing) existing.outerHTML = html;
         else pre.insertAdjacentHTML('afterend', html);
+        // Direct listener so the click never bubbles to .mes_text — ST's
+        // click-to-edit power-user feature would otherwise open the editor.
+        pre.parentElement.querySelector(`.tkw-action[data-hash="${item.hash}"]`)
+            ?.addEventListener('click', onActionClick);
     }
     // Remove cards whose block no longer exists in the text (message edited).
     const validHashes = new Set(extractDeliverables(message.mes).map(i => i.hash));
@@ -164,6 +168,7 @@ async function maybeAutoApply(mesId) {
 }
 
 function onActionClick(event) {
+    event.stopPropagation();
     const card = event.target.closest('.tkw-action');
     if (!card) return;
     const mesId = Number(card.dataset.mesid);
@@ -198,8 +203,6 @@ export function initInlineUi() {
     eventSource.on(eventTypes.MESSAGE_EDITED, (mesId) => queueMicrotask(() => decorateMessage(Number(mesId))));
     eventSource.on(eventTypes.MESSAGE_SWIPED, (mesId) => queueMicrotask(() => decorateMessage(Number(mesId))));
     eventSource.on(eventTypes.MESSAGE_UPDATED, (mesId) => queueMicrotask(() => decorateMessage(Number(mesId))));
-
-    $(document).on('click', '.tkw-action', onActionClick);
 
     // Decorate whatever is already on screen (init happens after first CHAT_CHANGED).
     decorateAllMessages();

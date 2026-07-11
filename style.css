@@ -63,6 +63,9 @@
     align-items: center;
     gap: 0.35em;
     padding: 0 0.8em;
+    white-space: nowrap;
+    flex: 0 0 auto;
+    width: auto;
 }
 
 .tkw-applied {
