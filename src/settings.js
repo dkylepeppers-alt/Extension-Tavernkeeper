@@ -7,6 +7,8 @@ const defaults = Object.freeze({
     heuristics: true,
     enableQrSetsOnApply: true,
     maxBlockKb: 256,
+    injectProtocol: true,
+    knowledgeVersion: 0,
 });
 
 export function getSettings() {

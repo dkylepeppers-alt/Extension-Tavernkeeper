@@ -22,6 +22,8 @@ const ENTRY_FIELDS = [
     'group', 'groupOverride', 'groupWeight', 'useGroupScoring', 'preventRecursion',
     'excludeRecursion', 'delayUntilRecursion', 'sticky', 'cooldown', 'delay',
     'scanDepth', 'caseSensitive', 'matchWholeWords', 'automationId', 'vectorized', 'ignoreBudget',
+    'outletName', 'triggers', 'addMemo', 'matchPersonaDescription', 'matchCharacterDescription',
+    'matchCharacterPersonality', 'matchCharacterDepthPrompt', 'matchScenario', 'matchCreatorNotes',
 ];
 const ENTRY_ALIASES = {
     keys: 'key',
@@ -38,6 +40,13 @@ const ENTRY_ALIASES = {
     group_weight: 'groupWeight',
     use_group_scoring: 'useGroupScoring',
     ignore_budget: 'ignoreBudget',
+    outlet_name: 'outletName',
+    match_persona_description: 'matchPersonaDescription',
+    match_character_description: 'matchCharacterDescription',
+    match_character_personality: 'matchCharacterPersonality',
+    match_character_depth_prompt: 'matchCharacterDepthPrompt',
+    match_scenario: 'matchScenario',
+    match_creator_notes: 'matchCreatorNotes',
 };
 
 function normalizeEntryFields(source) {

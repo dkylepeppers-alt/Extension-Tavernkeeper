@@ -109,7 +109,7 @@ const TOOL_DEFS = [
     {
         name: 'workshop_add_regex_script',
         displayName: 'Workshop: Add Regex Script',
-        description: 'Add or update a global SillyTavern regex find/replace script. placement: 1=user input, 2=AI output. markdownOnly alters display only; promptOnly alters what the model sees only.',
+        description: 'Add or update a global SillyTavern regex find/replace script. placement: 1=user input, 2=AI output, 3=slash commands, 5=World Info, 6=reasoning blocks. markdownOnly alters display only; promptOnly alters what the model sees only.',
         schema: {
             type: 'object',
             properties: {
@@ -138,6 +138,61 @@ const TOOL_DEFS = [
         },
         toItem: (params) => makeItem('script', null, String(params.script ?? '')),
     },
+    {
+        name: 'workshop_list_lorebooks',
+        displayName: 'Workshop: List Lorebooks',
+        description: 'List the names of every existing SillyTavern lorebook (World Info file). Read-only, runs immediately. Use it BEFORE creating a lorebook or adding entries so target names match reality.',
+        schema: { type: 'object', properties: {} },
+        readOnly: true,
+        run: async () => {
+            const names = SillyTavern.getContext().getWorldInfoNames?.() ?? [];
+            return JSON.stringify(names);
+        },
+    },
+    {
+        name: 'workshop_get_lorebook',
+        displayName: 'Workshop: Read Lorebook',
+        description: 'Read a digest of one lorebook: for each entry its uid, comment, keys, flags, placement, and (truncated) content. Read-only, runs immediately. Use it before merging entries into an existing book.',
+        schema: {
+            type: 'object',
+            properties: {
+                name: { type: 'string', description: 'Exact lorebook name (see workshop_list_lorebooks)' },
+            },
+            required: ['name'],
+        },
+        readOnly: true,
+        run: async (params) => {
+            const ctx = SillyTavern.getContext();
+            const name = String(params.name ?? '');
+            // loadWorldInfo returns an empty shell for missing books — check the name list instead.
+            if (!ctx.getWorldInfoNames?.().includes(name)) {
+                return `No lorebook named "${name}" exists. workshop_list_lorebooks returns the valid names.`;
+            }
+            const data = await ctx.loadWorldInfo(name).catch(() => null);
+            if (!data?.entries) return `No lorebook named "${name}" exists. workshop_list_lorebooks returns the valid names.`;
+            const digest = (contentChars) => Object.values(data.entries).map(e => ({
+                uid: e.uid,
+                comment: e.comment || undefined,
+                key: e.key?.length ? e.key : undefined,
+                keysecondary: e.keysecondary?.length ? e.keysecondary : undefined,
+                constant: e.constant || undefined,
+                disabled: e.disable || undefined,
+                position: e.position,
+                depth: e.position === 4 ? e.depth : undefined,
+                order: e.order,
+                content: String(e.content ?? '').length > contentChars
+                    ? String(e.content).slice(0, contentChars) + '…'
+                    : String(e.content ?? ''),
+            }));
+            // Keep the result comfortably inside the model's context.
+            for (const chars of [400, 120, 0]) {
+                const result = JSON.stringify(digest(chars));
+                if (result.length <= 16000) return result;
+            }
+            const entries = digest(0);
+            return JSON.stringify({ note: `book too large, first 50 of ${entries.length} entries shown`, entries: entries.slice(0, 50) });
+        },
+    },
 ];
 
 async function runToolItem(item) {
@@ -163,6 +218,7 @@ export function registerWorkshopTools() {
             formatMessage: (params) => `Workshop: preparing ${def.displayName.replace('Workshop: ', '').toLowerCase()}…`,
             action: async (params) => {
                 const settings = getSettings();
+                if (def.readOnly) return await def.run(params ?? {});
                 const item = def.toItem(params ?? {});
                 if (item.invalid) return `Invalid parameters: ${item.invalid}`;
                 if (!settings.autoMode || item.type === 'script') {

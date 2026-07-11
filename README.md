@@ -4,11 +4,25 @@ A SillyTavern UI extension that turns AI chat output into real objects. When a c
 (designed companion: **Tavernkeeper**) emits a tagged fenced code block, the Workshop
 detects it and offers a one-tap **Apply** — or applies it automatically in auto mode.
 
+## Knowledge book & protocol injection
+
+The extension owns the **Tavernkeeper Knowledge** lorebook. On startup it creates or
+updates the world file from the bundled [knowledge/tavernkeeper-knowledge.json](knowledge/tavernkeeper-knowledge.json)
+(version-checked, so it only rewrites when the bundled knowledge changed). Knowledge
+updates ship with extension updates — no card reimport. Do not hand-edit that world file:
+your edits are overwritten on the next version bump; edit the JSON in this repo instead.
+
+The deliverable protocol is no longer card knowledge either: when **Teach the active
+character the deliverable protocol** is enabled (default), the extension injects a compact,
+mode-aware note into every prompt, so *any* character — not just Tavernkeeper — can emit
+appliable `st-*` fences.
+
 ## Companion card
 
 The extension works with any character that emits the supported tagged fences. The included
-**Tavernkeeper** character is the purpose-built companion: its conditional knowledge book
-understands the Workshop protocol, modes, commands, function tools, and safety boundaries.
+**Tavernkeeper** character is the purpose-built companion persona; its deep SillyTavern
+internals knowledge comes from the extension-managed lorebook above, which the card links
+via `extensions.world`. Without the extension, the card is personality only.
 
 - [Import Tavernkeeper.png](cards/Tavernkeeper.png) for the complete character card with its
   portrait.
@@ -17,7 +31,7 @@ understands the Workshop protocol, modes, commands, function tools, and safety b
 - [View the avatar generation prompt](cards/AVATAR_PROMPT.md) to reproduce or adapt the
   bundled portrait.
 
-Import only one card format; the PNG and JSON contain the same Tavernkeeper version 1.1 data.
+Import only one card format; the PNG and JSON contain the same Tavernkeeper version 2.0 data.
 Install this extension separately using the instructions below, then reload SillyTavern.
 
 ## Modes
@@ -48,11 +62,13 @@ regex `findRegex`, `{book, entry}`, `{name, entries}`) — can be disabled in se
 
 ## Function tools
 
-On Chat Completion APIs with function calling enabled, six tools are registered
+On Chat Completion APIs with function calling enabled, six write tools are registered
 (`workshop_create_character`, `workshop_upsert_lorebook`, `workshop_add_lorebook_entry`,
 `workshop_create_qr_set`, `workshop_add_regex_script`, `workshop_run_stscript`). In plan
 mode tool calls queue for approval (review popup via the toast or `/workshop-queue`);
-in auto mode they execute directly. On text-completion APIs, the fence protocol is the
+in auto mode they execute directly. Two read tools (`workshop_list_lorebooks`,
+`workshop_get_lorebook`) run immediately in both modes so the model can check existing
+books before creating or merging. On text-completion APIs, the fence protocol is the
 universal path.
 
 ## Slash commands

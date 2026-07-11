@@ -2,6 +2,7 @@ import { getSettings, saveSettings } from './src/settings.js';
 import { initAppliers } from './src/appliers.js';
 import { initInlineUi, applyAllInMessage, decorateAllMessages } from './src/inline-ui.js';
 import { registerWorkshopTools, initToolQueueClicks, showToolQueuePopup } from './src/tools.js';
+import { syncKnowledgeBook, updateProtocolInjection } from './src/knowledge.js';
 
 const EXTENSION_FOLDER = 'third-party/Extension-Tavernkeeper';
 const LOG_PREFIX = "[Tavernkeeper's Workshop]";
@@ -18,6 +19,7 @@ function setAutoMode(value) {
     const settings = getSettings();
     settings.autoMode = !!value;
     saveSettings();
+    updateProtocolInjection();
     $('#tkw_auto').prop('checked', settings.autoMode);
     $('#tkw_menu_auto i').attr('class', `fa-solid ${settings.autoMode ? 'fa-toggle-on' : 'fa-toggle-off'}`);
     toastr.info(`Workshop mode: ${settings.autoMode ? 'AUTO — deliverables apply as they arrive' : 'PLAN — deliverables wait for your Apply'}`, "Tavernkeeper's Workshop");
@@ -53,11 +55,12 @@ async function mountSettingsPanel() {
             onChange?.(this.checked);
         });
     };
-    bindCheckbox('#tkw_enabled', 'enabled', () => decorateAllMessages());
+    bindCheckbox('#tkw_enabled', 'enabled', () => { decorateAllMessages(); updateProtocolInjection(); });
     bindCheckbox('#tkw_auto', 'autoMode', (checked) => setAutoMode(checked));
     bindCheckbox('#tkw_tools', 'enableTools');
     bindCheckbox('#tkw_heuristics', 'heuristics', () => decorateAllMessages());
     bindCheckbox('#tkw_qr_enable', 'enableQrSetsOnApply');
+    bindCheckbox('#tkw_inject', 'injectProtocol', () => updateProtocolInjection());
     $('#tkw_max_kb').val(settings.maxBlockKb).on('input', function () {
         const value = Number(this.value);
         if (Number.isFinite(value) && value >= 1) {
@@ -158,6 +161,8 @@ async function init() {
     initInlineUi();
     initToolQueueClicks();
     registerWorkshopTools();
+    updateProtocolInjection();
+    await syncKnowledgeBook();
     console.log(`${LOG_PREFIX} ready`);
 }
 
