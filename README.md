@@ -4,6 +4,22 @@ A SillyTavern UI extension that turns AI chat output into real objects. When a c
 (designed companion: **Tavernkeeper**) emits a tagged fenced code block, the Workshop
 detects it and offers a one-tap **Apply** — or applies it automatically in auto mode.
 
+## Companion card
+
+The extension works with any character that emits the supported tagged fences. The included
+**Tavernkeeper** character is the purpose-built companion: its conditional knowledge book
+understands the Workshop protocol, modes, commands, function tools, and safety boundaries.
+
+- [Import Tavernkeeper.png](cards/Tavernkeeper.png) for the complete character card with its
+  portrait.
+- [Import the Character Card V2 JSON](cards/Tavernkeeper.chara_card_v2.json) when you prefer
+  an inspectable text source or want to provide your own avatar.
+- [View the avatar generation prompt](cards/AVATAR_PROMPT.md) to reproduce or adapt the
+  bundled portrait.
+
+Import only one card format; the PNG and JSON contain the same Tavernkeeper version 1.1 data.
+Install this extension separately using the instructions below, then reload SillyTavern.
+
 ## Modes
 
 - **Plan mode (default)** — every detected deliverable gets an inline action card under its
@@ -62,6 +78,13 @@ git clone https://github.com/dkylepeppers-alt/Extension-Tavernkeeper.git \
 ```
 
 Reload SillyTavern after installation.
+
+To validate the bundled card JSON, PNG metadata, portrait dimensions, prompt, and README
+links after making changes, run:
+
+```bash
+node tests/validate-card.mjs
+```
 
 ## Notes
 
