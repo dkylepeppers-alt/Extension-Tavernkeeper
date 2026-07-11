@@ -1,0 +1,13 @@
+{
+    "display_name": "Tavernkeeper's Workshop",
+    "loading_order": 100,
+    "requires": [],
+    "optional": [],
+    "dependencies": [],
+    "js": "index.js",
+    "css": "style.css",
+    "author": "dev",
+    "version": "1.0.0",
+    "homePage": "https://github.com/dev/Extension-Tavernkeeper",
+    "auto_update": false
+}

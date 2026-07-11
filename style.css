@@ -1,0 +1,98 @@
+.tkw-action,
+.tkw-queue-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5em;
+    width: 100%;
+    margin: 0.3em 0 0.6em 0;
+    padding: 0.5em;
+    border: 1px solid var(--SmartThemeBorderColor);
+    border-left: 3px solid var(--SmartThemeQuoteColor);
+    border-radius: 5px;
+    color: var(--SmartThemeBodyColor);
+}
+
+.tkw-icon {
+    font-size: 1.2em;
+    min-width: 1.5em;
+    text-align: center;
+    opacity: 0.9;
+}
+
+.tkw-info {
+    flex: 1 1 12em;
+    min-width: 0;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    column-gap: 0.5em;
+}
+
+.tkw-info .tkw-name {
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+
+.tkw-info .tkw-summary {
+    opacity: 0.7;
+    overflow-wrap: anywhere;
+}
+
+.tkw-note {
+    flex-basis: 100%;
+    font-size: 0.9em;
+    opacity: 0.85;
+    overflow-wrap: anywhere;
+}
+
+.tkw-note a.tkw-reoffer {
+    cursor: pointer;
+    text-decoration: underline;
+}
+
+.tkw-buttons {
+    display: flex;
+    gap: 0.4em;
+    margin-left: auto;
+}
+
+.tkw-buttons .menu_button {
+    min-height: 2.5em;
+    display: flex;
+    align-items: center;
+    gap: 0.35em;
+    padding: 0 0.8em;
+}
+
+.tkw-applied {
+    border-left-color: color-mix(in srgb, var(--SmartThemeQuoteColor) 60%, transparent);
+}
+
+.tkw-applied .tkw-icon {
+    color: var(--SmartThemeQuoteColor);
+}
+
+.tkw-failed .tkw-icon,
+.tkw-invalid .tkw-icon {
+    color: var(--warning, orange);
+}
+
+.tkw-dismissed {
+    opacity: 0.55;
+}
+
+.tkw-queue h3 {
+    margin: 0 0 0.5em 0;
+}
+
+.tkw-settings .tkw-narrow {
+    width: 6em;
+    flex: 0 0 auto;
+}
+
+.tkw-settings .tkw-hint {
+    display: block;
+    margin-top: 0.5em;
+    opacity: 0.7;
+}

@@ -1,0 +1,35 @@
+<div class="tkw-settings">
+    <div class="inline-drawer">
+        <div class="inline-drawer-toggle inline-drawer-header">
+            <b>Tavernkeeper's Workshop</b>
+            <div class="inline-drawer-icon fa-solid fa-circle-chevron-down down"></div>
+        </div>
+        <div class="inline-drawer-content">
+            <label class="checkbox_label" for="tkw_enabled">
+                <input type="checkbox" id="tkw_enabled">
+                <span>Enabled</span>
+            </label>
+            <label class="checkbox_label" for="tkw_auto">
+                <input type="checkbox" id="tkw_auto">
+                <span>Auto-apply mode (plan mode when off)</span>
+            </label>
+            <label class="checkbox_label" for="tkw_tools">
+                <input type="checkbox" id="tkw_tools">
+                <span>LLM function tools (Chat Completion APIs with function calling)</span>
+            </label>
+            <label class="checkbox_label" for="tkw_heuristics">
+                <input type="checkbox" id="tkw_heuristics">
+                <span>Detect untagged JSON deliverables (heuristics)</span>
+            </label>
+            <label class="checkbox_label" for="tkw_qr_enable">
+                <input type="checkbox" id="tkw_qr_enable">
+                <span>Enable Quick Reply sets globally when applied</span>
+            </label>
+            <div class="flex-container alignItemsCenter">
+                <span>Max block size (KB)</span>
+                <input type="number" id="tkw_max_kb" class="text_pole tkw-narrow" min="1" max="4096">
+            </div>
+            <small class="tkw-hint">STscript deliverables always require a manual Apply, even in auto mode. Tagged fences (```st-card, ```st-lorebook, ```st-wi-entry, ```st-qrset, ```st-regex, ```st-script) work on any API; function tools need Chat Completion + function calling.</small>
+        </div>
+    </div>
+</div>
