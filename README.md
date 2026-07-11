@@ -47,8 +47,21 @@ universal path.
 
 ## Install
 
-Extensions panel → *Install extension* → this repo's Git URL. Or clone into
-`data/<user-handle>/extensions/`. Reload the page after install.
+In SillyTavern, open **Extensions → Install extension**, paste this repository URL, and
+select **Install**:
+
+```text
+https://github.com/dkylepeppers-alt/Extension-Tavernkeeper
+```
+
+For a manual installation, clone the repository into your SillyTavern extensions folder:
+
+```bash
+git clone https://github.com/dkylepeppers-alt/Extension-Tavernkeeper.git \
+  data/<user-handle>/extensions/Extension-Tavernkeeper
+```
+
+Reload SillyTavern after installation.
 
 ## Notes
 
