@@ -20,10 +20,10 @@ const root = await fs.mkdtemp(path.join(os.tmpdir(), 'tkw-routes-'));
 const directories = { root, extensions: path.join(root, 'extensions') };
 await fs.mkdir(directories.extensions, { recursive: true });
 
-async function invoke(method, route, body = {}, withUser = true) {
+async function invoke(method, route, body = {}, withUser = true, userDirectories = directories) {
     let status = 200;
     let payload;
-    const req = { body, user: withUser ? { directories, profile: { handle: 'tester' } } : undefined };
+    const req = { body, user: withUser ? { directories: userDirectories, profile: { handle: 'tester' } } : undefined };
     const res = {
         status(value) { status = value; return this; },
         json(value) { payload = value; return this; },
@@ -52,6 +52,17 @@ try {
     const invalid = await invoke('POST', '/validate/patch', { projectId: applied.payload.projectId, slug: 'route-test', expectedRevision: 0, operations: [] });
     assert.equal(invalid.status, 409);
     assert.equal(invalid.payload.error.code, 'STALE_REVISION');
+
+    const relativeRoot = await fs.mkdtemp(path.join(process.cwd(), '.tkw-relative-routes-'));
+    const relativeDirectories = {
+        root: path.relative(process.cwd(), relativeRoot),
+        extensions: path.relative(process.cwd(), path.join(relativeRoot, 'extensions')),
+    };
+    await fs.mkdir(path.join(relativeRoot, 'extensions'));
+    const relativeList = await invoke('POST', '/projects', {}, true, relativeDirectories);
+    assert.equal(relativeList.status, 200);
+    assert.deepEqual(relativeList.payload, { projects: [] });
+    await fs.rm(relativeRoot, { recursive: true, force: true });
     console.log('Managed extension writer routes passed');
 } finally {
     await fs.rm(root, { recursive: true, force: true });

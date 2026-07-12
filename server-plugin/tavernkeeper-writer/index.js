@@ -14,9 +14,10 @@ function writerFor(request) {
     if (!directories?.root || !directories?.extensions) {
         throw new WriterError('UNAUTHENTICATED', 'An authenticated SillyTavern user is required', 401);
     }
-    const stateRoot = path.join(directories.root, 'tavernkeeper-writer');
-    const key = `${directories.extensions}\0${stateRoot}`;
-    if (!writers.has(key)) writers.set(key, createWriter({ extensionsRoot: directories.extensions, stateRoot }));
+    const extensionsRoot = path.resolve(directories.extensions);
+    const stateRoot = path.resolve(directories.root, 'tavernkeeper-writer');
+    const key = `${extensionsRoot}\0${stateRoot}`;
+    if (!writers.has(key)) writers.set(key, createWriter({ extensionsRoot, stateRoot }));
     return writers.get(key);
 }
 
