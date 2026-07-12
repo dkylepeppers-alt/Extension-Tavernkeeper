@@ -99,3 +99,20 @@
     margin-top: 0.5em;
     opacity: 0.7;
 }
+
+.tkw-settings .tkw-meta {
+    margin-top: 0.6em;
+    padding-top: 0.4em;
+    border-top: 1px solid var(--SmartThemeBorderColor);
+}
+
+.tkw-settings .tkw-meta small {
+    display: block;
+    opacity: 0.7;
+    overflow-wrap: anywhere;
+}
+
+.tkw-settings .tkw-warning {
+    color: var(--warning, orange);
+    opacity: 1;
+}

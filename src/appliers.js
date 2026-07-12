@@ -1,8 +1,8 @@
 import { getSettings } from './settings.js';
 
-// createNewWorldInfo / createWorldInfoEntry / updateWorldInfoList are not on
-// getContext(); loaded via absolute dynamic import so a moved module degrades
-// gracefully instead of killing the whole extension at import time.
+// createNewWorldInfo / createWorldInfoEntry are not on getContext(); loaded
+// via absolute dynamic import so a moved module degrades gracefully instead
+// of killing the whole extension at import time.
 let worldInfoModule = null;
 
 export async function initAppliers() {
@@ -118,7 +118,7 @@ async function applyLorebook(item) {
         appendEntry(bookData, entrySource);
     }
     await ctx.saveWorldInfo(name, bookData, true);
-    if (isNew) await worldInfoModule.updateWorldInfoList();
+    if (isNew) await ctx.updateWorldInfoList?.();
     ctx.reloadWorldInfoEditor?.(name, false);
     const verb = isNew ? `Created` : `Merged ${sourceEntries.length} entries into existing`;
     return { ok: true, message: `${verb} lorebook "${name}" (${sourceEntries.length} entries) — manage under World Info` };

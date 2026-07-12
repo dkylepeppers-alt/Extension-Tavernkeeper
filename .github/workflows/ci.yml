@@ -1,0 +1,23 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Protocol tests
+        run: node tests/validate-protocol.mjs
+      - name: Knowledge tests
+        run: node tests/validate-knowledge.mjs
+      - name: Settings + compat tests
+        run: node tests/validate-settings.mjs
+      - name: Card + assets validation
+        run: node tests/validate-card.mjs

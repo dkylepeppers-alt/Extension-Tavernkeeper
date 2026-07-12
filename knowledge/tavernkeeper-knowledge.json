@@ -1,7 +1,10 @@
 {
-  "version": 2,
+  "version": 3,
   "name": "Tavernkeeper Knowledge",
-  "description": "SillyTavern internals knowledge bank, owned and synced by Tavernkeeper's Workshop. Edits to this world file are overwritten when the extension updates it.",
+  "description": "SillyTavern internals knowledge bank, bundled with Tavernkeeper's Workshop and served on demand through the workshop_search_knowledge tool.",
+  "changelog": [
+    { "version": 3, "summary": "Knowledge is now served by the workshop_search_knowledge tool instead of a synced lorebook; read tools cover characters, Quick Reply sets, and regex scripts; untagged-JSON detection was removed." }
+  ],
   "entries": {
     "0": {
       "uid": 0,
@@ -183,7 +186,7 @@
       "uid": 25,
       "key": ["workshop", "/workshop-mode", "/workshop-apply", "/workshop-queue", "plan mode", "auto mode", "deliverable", "apply", "dismiss"],
       "comment": "Workshop operation (modes, commands, tools)",
-      "content": "Tavernkeeper's Workshop (the extension the user runs) turns tagged st-* fences and function tools into real SillyTavern objects; the fence protocol and current mode are injected into the prompt by the extension itself. Operation: plan mode (default) renders Apply/Dismiss cards under detected blocks; auto mode applies deliverables as messages arrive — except STscript, which always waits for explicit approval because it executes commands. /workshop-mode plan|auto|toggle reads or sets the mode, /workshop-apply [mesId] applies everything pending in a message (default: last AI message, includes STscript), /workshop-queue reviews queued function-tool calls. On Chat Completion APIs with function calling, write tools cover characters, lorebooks, lorebook entries, Quick Reply sets, regex scripts, and STscript; read tools workshop_list_lorebooks (existing book names) and workshop_get_lorebook (entry digest for one book) run immediately in any mode — use them BEFORE creating or merging into a book so names and entries match reality. Applied/dismissed state is stored per message keyed by content hash, so reloads, edits, and swipes re-offer only genuinely new content. There is no automatic undo; each success note names exactly what was created and where to manage it. Drafts that must NOT be applied belong in jsonc or text fences, never bare json (heuristic detection) or st-* tags.",
+      "content": "Tavernkeeper's Workshop (the extension the user runs) turns workshop function tools and tagged st-* fences into real SillyTavern objects; the fence protocol, current mode, and this knowledge index are injected into the prompt by the extension itself. Operation: plan mode (default) renders Apply/Dismiss cards under detected blocks and queues tool calls for approval; auto mode applies deliverables as they arrive — except STscript and anything else that can execute scripts (Quick Reply sets with auto-execute flags, lorebook entries with an automationId), which always wait for explicit approval. /workshop-mode plan|auto|toggle reads or sets the mode, /workshop-apply [mesId] applies everything pending in a message (default: last AI message, includes STscript), /workshop-queue reviews queued function-tool calls. Write tools cover characters, lorebooks, lorebook entries, Quick Reply sets, regex scripts, and STscript. Read tools run immediately in any mode: workshop_list_lorebooks and workshop_get_lorebook (book names, entry digest), workshop_list_characters and workshop_get_character (installed cards), workshop_list_qr_sets and workshop_get_qr_set (Quick Reply sets), workshop_list_regex_scripts (global regex scripts), and workshop_search_knowledge (this knowledge base, by entry id or query) — always read the current state BEFORE creating or merging so names match reality. Applied/dismissed state is stored per message keyed by content hash, so reloads, edits, and swipes re-offer only genuinely new content. There is no automatic undo; each success note names exactly what was created and where to manage it. Drafts that must NOT be applied belong in jsonc or text fences, never st-* tags; a deliverable whose JSON contains ``` lines goes in a longer (four-backtick) fence.",
       "order": 810
     }
   }

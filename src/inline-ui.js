@@ -1,14 +1,9 @@
 import { getSettings } from './settings.js';
-import { extractDeliverables, TYPE_INFO } from './protocol.js';
+import { extractDeliverables, isExecutable, TYPE_INFO } from './protocol.js';
 import { apply } from './appliers.js';
+import { escapeHtml } from './util.js';
 
 const STATE_KEY = 'tk_workshop';
-
-function escapeHtml(text) {
-    return String(text ?? '').replace(/[&<>"']/g, c => ({
-        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
-    }[c]));
-}
 
 function getState(message) {
     return message?.extra?.[STATE_KEY] ?? {};
@@ -83,10 +78,18 @@ export function decorateMessage(mesId) {
     if (!codeBlocks.length) return;
 
     const state = getState(message);
-    for (const item of extractDeliverables(message.mes)) {
-        const codeEl = codeBlocks.get(item.blockIndex);
-        if (!codeEl) continue;
-        const pre = codeEl.closest('pre');
+    const items = extractDeliverables(message.mes);
+    const codeEls = codeBlocks.toArray();
+    const claimed = new Set();
+    for (const item of items) {
+        // Match the DOM block by content — the markdown renderer can produce
+        // pre>code blocks (indented, blockquoted) the fence regex never saw,
+        // which skews positional indexes. Fall back to position on no match.
+        let index = codeEls.findIndex((el, i) => !claimed.has(i) && el.textContent.trim() === item.raw);
+        if (index === -1 && !claimed.has(item.blockIndex) && codeEls[item.blockIndex]) index = item.blockIndex;
+        if (index === -1) continue;
+        claimed.add(index);
+        const pre = codeEls[index].closest('pre');
         const existing = pre.parentElement.querySelector(`.tkw-action[data-hash="${item.hash}"]`);
         // All interpolations are escaped in renderActionCard; DOMPurify pass is defense-in-depth.
         const html = DOMPurify.sanitize(renderActionCard(mesId, item, state[item.hash]));
@@ -98,7 +101,7 @@ export function decorateMessage(mesId) {
             ?.addEventListener('click', onActionClick);
     }
     // Remove cards whose block no longer exists in the text (message edited).
-    const validHashes = new Set(extractDeliverables(message.mes).map(i => i.hash));
+    const validHashes = new Set(items.map(i => i.hash));
     $mes.find('.tkw-action').each(function () {
         if (!validHashes.has(this.dataset.hash)) this.remove();
     });
@@ -136,9 +139,11 @@ export async function applyByHash(mesId, hash, { silent = false } = {}) {
 
 /**
  * Apply every pending (un-stated, valid) deliverable in a message.
- * includeScripts is only true for explicit user actions (/workshop-apply).
+ * includeExecutables is only true for explicit user actions (/workshop-apply):
+ * STscript, QR sets with auto-execute flags, and automationId entries can all
+ * run scripts, so auto mode never touches them.
  */
-export async function applyAllInMessage(mesId, { includeScripts = false } = {}) {
+export async function applyAllInMessage(mesId, { includeExecutables = false } = {}) {
     const ctx = SillyTavern.getContext();
     const message = ctx.chat?.[mesId];
     if (!message) return { applied: 0, failed: 0, skipped: 0 };
@@ -146,7 +151,7 @@ export async function applyAllInMessage(mesId, { includeScripts = false } = {}) 
     const results = { applied: 0, failed: 0, skipped: 0 };
     for (const item of extractDeliverables(message.mes)) {
         if (item.invalid || state[item.hash]) { results.skipped++; continue; }
-        if (item.type === 'script' && !includeScripts) { results.skipped++; continue; }
+        if (isExecutable(item) && !includeExecutables) { results.skipped++; continue; }
         const result = await applyByHash(mesId, item.hash);
         result.ok ? results.applied++ : results.failed++;
     }
@@ -156,14 +161,14 @@ export async function applyAllInMessage(mesId, { includeScripts = false } = {}) 
 async function maybeAutoApply(mesId) {
     const settings = getSettings();
     if (!settings.enabled || !settings.autoMode) return;
-    const results = await applyAllInMessage(mesId, { includeScripts: false });
+    const results = await applyAllInMessage(mesId, { includeExecutables: false });
     if (results.skipped && !results.applied && !results.failed) return;
     const ctx = SillyTavern.getContext();
     const message = ctx.chat?.[mesId];
-    const hasPendingScript = message && extractDeliverables(message.mes)
-        .some(i => i.type === 'script' && !i.invalid && !getState(message)[i.hash]);
-    if (hasPendingScript) {
-        toastr.info('An STscript deliverable is waiting — scripts always need a manual Apply', "Tavernkeeper's Workshop");
+    const hasPendingExecutable = message && extractDeliverables(message.mes)
+        .some(i => isExecutable(i) && !i.invalid && !getState(message)[i.hash]);
+    if (hasPendingExecutable) {
+        toastr.info('A deliverable that can execute scripts is waiting — it always needs a manual Apply', "Tavernkeeper's Workshop");
     }
 }
 

@@ -19,8 +19,10 @@ const TAG_TYPES = {
 };
 
 // Matches every fenced code block; blockIndex counts ALL fences so it maps 1:1
-// onto the message's `.mes_text pre > code` DOM order.
-const FENCE_RE = /^[ \t]*```([\w-]*)[^\n]*\n([\s\S]*?)\n[ \t]*```[ \t]*$/gm;
+// onto the message's `.mes_text pre > code` DOM order. CommonMark-style: the
+// closing fence must be at least as long as the opener, so a 4-backtick fence
+// can carry a body that itself contains ``` lines (e.g. a card's mes_example).
+const FENCE_RE = /^[ \t]*(`{3,})([\w-]*)[^\n]*\n([\s\S]*?)\n[ \t]*\1`*[ \t]*$/gm;
 
 function fnv1a(str) {
     let hash = 0x811c9dc5;
@@ -39,14 +41,16 @@ function truncate(text, max = 60) {
 /**
  * Normalize a (type, data, raw) triple into a deliverable item with hash,
  * display name, summary, and validation. Shared by fence parsing and tools.
+ * occurrence salts the hash for repeated identical blocks in one message;
+ * 0 keeps the pre-3.0 hash so stored chat state still matches.
  */
-export function makeItem(type, data, raw, blockIndex = -1) {
+export function makeItem(type, data, raw, blockIndex = -1, occurrence = 0) {
     const item = {
         type,
         data,
         raw,
         blockIndex,
-        hash: fnv1a(type + '\0' + raw),
+        hash: fnv1a(type + '\0' + raw + (occurrence ? '\0' + occurrence : '')),
         name: '',
         summary: '',
         invalid: null,
@@ -122,59 +126,74 @@ export function makeItem(type, data, raw, blockIndex = -1) {
     return item;
 }
 
-function sniff(obj) {
-    if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return null;
-    if (String(obj.spec ?? '').startsWith('chara_card')) return 'card';
-    if (obj.version === 2 && Array.isArray(obj.qrList)) return 'qrset';
-    if (typeof obj.findRegex === 'string' && obj.scriptName) return 'regex';
-    if (obj.book && obj.entry && typeof obj.entry === 'object') return 'wi-entry';
-    if (obj.name && obj.entries && typeof obj.entries === 'object') {
-        const values = Array.isArray(obj.entries) ? obj.entries : Object.values(obj.entries);
-        if (values.length && values.every(e => e && typeof e === 'object' && 'content' in e && ('key' in e || 'keys' in e || 'constant' in e))) {
-            return 'lorebook';
-        }
-    }
-    return null;
+// Auto-execute QR flags: a set carrying any of these runs STscript without a tap.
+const QR_EXEC_FLAGS = [
+    'executeOnStartup', 'executeOnUser', 'executeOnAi',
+    'executeOnChatChange', 'executeOnNewChat', 'executeOnGroupMemberDraft',
+];
+
+function entryHasAutomation(entry) {
+    return Boolean(entry && typeof entry === 'object' && (entry.automationId || entry.automation_id));
 }
 
 /**
- * Extract deliverable items from a message's raw text.
- * Returns [] on anything unparseable; never throws.
+ * True for any deliverable that can execute STscript — directly (script) or
+ * indirectly (QR auto-execute flags, WI automationId firing a Quick Reply).
+ * These always require a manual Apply, even in auto mode.
  */
-export function extractDeliverables(mesText) {
-    const settings = getSettings();
+export function isExecutable(item) {
+    switch (item?.type) {
+        case 'script':
+            return true;
+        case 'qrset':
+            return (item.data?.qrList ?? []).some(qr => qr && QR_EXEC_FLAGS.some(flag => qr[flag]));
+        case 'lorebook': {
+            const entries = item.data?.entries;
+            const values = Array.isArray(entries) ? entries : Object.values(entries ?? {});
+            return values.some(entryHasAutomation);
+        }
+        case 'wi-entry':
+            return entryHasAutomation(item.data?.entry);
+        default:
+            return false;
+    }
+}
+
+/**
+ * Extract deliverable items from a message's raw text. Only tagged st-* fences
+ * count — untagged JSON is never guessed at. Returns [] on anything
+ * unparseable; never throws.
+ */
+export function extractDeliverables(mesText, settings = getSettings()) {
     const items = [];
     if (typeof mesText !== 'string' || !mesText.includes('```')) return items;
 
     let match;
     let blockIndex = -1;
+    const occurrences = new Map();
     FENCE_RE.lastIndex = 0;
     while ((match = FENCE_RE.exec(mesText)) !== null) {
         blockIndex++;
-        const lang = (match[1] || '').toLowerCase();
-        const body = match[2].trim();
+        const lang = (match[2] || '').toLowerCase();
+        const body = match[3].trim();
         if (!body || body.length > settings.maxBlockKb * 1024) continue;
 
         const taggedType = TAG_TYPES[lang];
+        if (!taggedType) continue;
+        const occKey = taggedType + '\0' + body;
+        const occurrence = occurrences.get(occKey) ?? 0;
+        occurrences.set(occKey, occurrence + 1);
+
         if (taggedType === 'script') {
-            items.push(makeItem('script', null, body, blockIndex));
+            items.push(makeItem('script', null, body, blockIndex, occurrence));
             continue;
         }
-        if (taggedType) {
-            try {
-                items.push(makeItem(taggedType, JSON.parse(body), body, blockIndex));
-            } catch (error) {
-                const item = makeItem(taggedType, null, body, blockIndex);
-                item.invalid = `Invalid JSON: ${error.message}`;
-                items.push(item);
-            }
-            continue;
-        }
-        if (settings.heuristics && (lang === 'json' || lang === '')) {
-            let data;
-            try { data = JSON.parse(body); } catch { continue; }
-            const type = sniff(data);
-            if (type) items.push(makeItem(type, data, body, blockIndex));
+        try {
+            items.push(makeItem(taggedType, JSON.parse(body), body, blockIndex, occurrence));
+        } catch (error) {
+            const item = makeItem(taggedType, null, body, blockIndex, occurrence);
+            item.invalid = `Invalid JSON: ${error.message}`;
+            items.push(item);
         }
     }
     return items;

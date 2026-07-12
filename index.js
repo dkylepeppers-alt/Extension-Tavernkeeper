@@ -2,10 +2,14 @@ import { getSettings, saveSettings } from './src/settings.js';
 import { initAppliers } from './src/appliers.js';
 import { initInlineUi, applyAllInMessage, decorateAllMessages } from './src/inline-ui.js';
 import { registerWorkshopTools, initToolQueueClicks, showToolQueuePopup } from './src/tools.js';
-import { syncKnowledgeBook, updateProtocolInjection } from './src/knowledge.js';
+import { loadKnowledge, getKnowledge, updateProtocolInjection, notifyKnowledgeState } from './src/knowledge.js';
+import { detectCapabilities, compatSummary } from './src/compat.js';
 
-const EXTENSION_FOLDER = 'third-party/Extension-Tavernkeeper';
+// Derived from this module's URL so any install folder name works.
+const EXTENSION_BASE = new URL('.', import.meta.url);
+const EXTENSION_FOLDER = EXTENSION_BASE.pathname.replace(/^.*\/scripts\/extensions\//, '').replace(/\/$/, '');
 const LOG_PREFIX = "[Tavernkeeper's Workshop]";
+const EXPECTED_CARD_VERSION = '3.0';
 
 function lastAiMessageId() {
     const ctx = SillyTavern.getContext();
@@ -35,8 +39,37 @@ async function loadSettingsHtml() {
     } catch (error) {
         console.warn(`${LOG_PREFIX} renderExtensionTemplateAsync failed, falling back to fetch`, error);
     }
-    const response = await fetch(`/scripts/extensions/${EXTENSION_FOLDER}/settings.html`);
+    const response = await fetch(new URL('settings.html', EXTENSION_BASE));
     return response.ok ? await response.text() : '';
+}
+
+async function getExtensionVersion() {
+    try {
+        const response = await fetch(new URL('manifest.json', EXTENSION_BASE), { cache: 'no-cache' });
+        return (await response.json()).version ?? '?';
+    } catch {
+        return '?';
+    }
+}
+
+async function renderVersionPanel() {
+    const parts = [`extension v${await getExtensionVersion()}`];
+    const knowledge = getKnowledge();
+    if (knowledge) parts.push(`knowledge v${knowledge.version}`);
+
+    const ctx = SillyTavern.getContext();
+    const card = (ctx.characters ?? []).find(c => c.name === 'Tavernkeeper');
+    let warning = '';
+    if (card) {
+        const cardVersion = card.data?.character_version ?? '?';
+        parts.push(`Tavernkeeper card v${cardVersion}`);
+        if (cardVersion !== EXPECTED_CARD_VERSION) {
+            warning = `Imported Tavernkeeper card is v${cardVersion}; this extension ships v${EXPECTED_CARD_VERSION} — reimport the bundled card.`;
+        }
+    }
+    $('#tkw_versions').text(parts.join(' · '));
+    $('#tkw_version_warning').text(warning).toggle(Boolean(warning));
+    $('#tkw_compat').text(compatSummary());
 }
 
 async function mountSettingsPanel() {
@@ -58,7 +91,6 @@ async function mountSettingsPanel() {
     bindCheckbox('#tkw_enabled', 'enabled', () => { decorateAllMessages(); updateProtocolInjection(); });
     bindCheckbox('#tkw_auto', 'autoMode', (checked) => setAutoMode(checked));
     bindCheckbox('#tkw_tools', 'enableTools');
-    bindCheckbox('#tkw_heuristics', 'heuristics', () => decorateAllMessages());
     bindCheckbox('#tkw_qr_enable', 'enableQrSetsOnApply');
     bindCheckbox('#tkw_inject', 'injectProtocol', () => updateProtocolInjection());
     $('#tkw_max_kb').val(settings.maxBlockKb).on('input', function () {
@@ -68,6 +100,7 @@ async function mountSettingsPanel() {
             saveSettings();
         }
     });
+    await renderVersionPanel();
 }
 
 function mountWandMenu() {
@@ -86,7 +119,7 @@ function mountWandMenu() {
     $('#tkw_menu_apply').on('click', async () => {
         const mesId = lastAiMessageId();
         if (mesId < 0) return toastr.warning('No AI message in this chat', "Tavernkeeper's Workshop");
-        const results = await applyAllInMessage(mesId, { includeScripts: true });
+        const results = await applyAllInMessage(mesId, { includeExecutables: true });
         toastr.info(`Applied ${results.applied}, failed ${results.failed}, skipped ${results.skipped}`, "Tavernkeeper's Workshop");
     });
 }
@@ -129,7 +162,7 @@ function registerSlashCommands() {
             const mesId = raw === '' ? lastAiMessageId() : Number(raw);
             const ctx2 = SillyTavern.getContext();
             if (!Number.isInteger(mesId) || mesId < 0 || !ctx2.chat?.[mesId]) return 'No such message';
-            const results = await applyAllInMessage(mesId, { includeScripts: true });
+            const results = await applyAllInMessage(mesId, { includeExecutables: true });
             return `applied ${results.applied}, failed ${results.failed}, skipped ${results.skipped}`;
         },
         unnamedArgumentList: [
@@ -139,7 +172,7 @@ function registerSlashCommands() {
                 isRequired: false,
             }),
         ],
-        helpString: '<div>Apply every pending Workshop deliverable in a message (including STscript blocks). <code>/workshop-apply</code> targets the last AI message.</div>',
+        helpString: '<div>Apply every pending Workshop deliverable in a message (including STscript and other script-capable blocks). <code>/workshop-apply</code> targets the last AI message.</div>',
     }));
 
     SlashCommandParser.addCommandObject(SlashCommand.fromProps({
@@ -154,7 +187,9 @@ function registerSlashCommands() {
 }
 
 async function init() {
+    detectCapabilities();
     await initAppliers();
+    await loadKnowledge();
     await mountSettingsPanel();
     mountWandMenu();
     registerSlashCommands();
@@ -162,7 +197,7 @@ async function init() {
     initToolQueueClicks();
     registerWorkshopTools();
     updateProtocolInjection();
-    await syncKnowledgeBook();
+    notifyKnowledgeState();
     console.log(`${LOG_PREFIX} ready`);
 }
 
