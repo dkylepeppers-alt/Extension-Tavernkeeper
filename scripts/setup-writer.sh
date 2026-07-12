@@ -36,11 +36,13 @@ if $DRY_RUN; then
     echo "DRY RUN: would install companion plugin to $PLUGIN_DEST"
 else
     if [[ -e "$PLUGIN_DEST" ]]; then
-        backup="$ST_ROOT/plugins/tavernkeeper-writer.backup-$STAMP"
+        backup_root="$ST_ROOT/backups/_tavernkeeper-writer-plugins"
+        mkdir -p "$backup_root"
+        backup="$backup_root/tavernkeeper-writer-$STAMP"
         counter=0
         while [[ -e "$backup" ]]; do
             counter=$((counter + 1))
-            backup="$ST_ROOT/plugins/tavernkeeper-writer.backup-$STAMP-$counter"
+            backup="$backup_root/tavernkeeper-writer-$STAMP-$counter"
         done
         mv "$PLUGIN_DEST" "$backup"
         echo "Backed up existing companion plugin to $backup"

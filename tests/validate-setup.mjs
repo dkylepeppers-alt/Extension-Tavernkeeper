@@ -30,9 +30,11 @@ try {
     await fs.writeFile(path.join(root, 'plugins', 'tavernkeeper-writer', 'old.txt'), 'preserve me');
     const second = run();
     assert.match(second, /Backed up existing companion plugin/);
-    const backups = (await fs.readdir(path.join(root, 'plugins'))).filter(name => name.startsWith('tavernkeeper-writer.backup-'));
+    const backupRoot = path.join(root, 'backups', '_tavernkeeper-writer-plugins');
+    const backups = (await fs.readdir(backupRoot)).filter(name => name.startsWith('tavernkeeper-writer-'));
     assert.equal(backups.length, 1);
-    assert.equal(await fs.readFile(path.join(root, 'plugins', backups[0], 'old.txt'), 'utf8'), 'preserve me');
+    assert.equal(await fs.readFile(path.join(backupRoot, backups[0], 'old.txt'), 'utf8'), 'preserve me');
+    assert.deepEqual((await fs.readdir(path.join(root, 'plugins'))).filter(name => name.startsWith('tavernkeeper-writer')), ['tavernkeeper-writer']);
     assert.match(run('--dry-run'), /DRY RUN/);
 
     assert.throws(
