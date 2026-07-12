@@ -3,6 +3,8 @@ import { makeItem, isExecutable, TYPE_INFO } from './protocol.js';
 import { apply } from './appliers.js';
 import { searchKnowledge } from './knowledge.js';
 import { escapeHtml, truncateText } from './util.js';
+import { listManagedProjects, getManagedProject, getManagedRevision } from './writer-client.js';
+import { getCapabilities } from './compat.js';
 
 // Tool calls waiting for user approval (plan mode, or executable deliverables
 // in any mode). Mirrored into chat_metadata so a reload doesn't drop them.
@@ -48,7 +50,7 @@ function capList(digestAtDetail) {
     return JSON.stringify({ note: `too large, first 100 of ${entries.length} shown`, items: entries.slice(0, 100) });
 }
 
-const TOOL_DEFS = [
+export const TOOL_DEFS = [
     {
         name: 'workshop_create_character',
         displayName: 'Workshop: Create Character',
@@ -174,6 +176,80 @@ const TOOL_DEFS = [
             required: ['script'],
         },
         toItem: (params) => makeItem('script', null, String(params.script ?? '')),
+    },
+    {
+        name: 'workshop_create_extension',
+        requiresWriter: true,
+        displayName: 'Workshop: Create Managed Extension',
+        description: 'Create a new small SillyTavern UI extension from text files. JavaScript is executable, so this ALWAYS queues a server-validated diff for manual approval. Include a valid manifest.json and its referenced JS/CSS entry points.',
+        schema: {
+            type: 'object',
+            properties: {
+                slug: { type: 'string', description: 'New lowercase folder slug, 2-63 letters/numbers/hyphens' },
+                displayName: { type: 'string', description: 'Must equal manifest.json display_name' },
+                files: { type: 'object', additionalProperties: { type: 'string' }, description: 'Map of project-relative text file paths to complete contents' },
+            },
+            required: ['slug', 'displayName', 'files'],
+        },
+        toItem: (params) => makeItem('extension-create', params, JSON.stringify(params, null, 2)),
+    },
+    {
+        name: 'workshop_adopt_extension',
+        requiresWriter: true,
+        displayName: 'Workshop: Adopt Existing Extension',
+        description: 'Explicitly mark an existing user UI-extension folder as Tavernkeeper-managed after validating and reviewing it. This grants future patch and rollback authority, so it ALWAYS requires manual approval.',
+        schema: {
+            type: 'object',
+            properties: { slug: { type: 'string', description: 'Exact existing extension folder name' } },
+            required: ['slug'],
+        },
+        toItem: (params) => makeItem('extension-adopt', params, JSON.stringify(params, null, 2)),
+    },
+    {
+        name: 'workshop_patch_extension',
+        requiresWriter: true,
+        displayName: 'Workshop: Update Managed Extension',
+        description: 'Atomically update a Tavernkeeper-managed UI extension. Call workshop_get_extension_project first and pass its current projectId, slug, and revision. JavaScript is executable, so this ALWAYS queues a server-validated diff for manual approval. Stale revisions are rejected, never merged silently.',
+        schema: {
+            type: 'object',
+            properties: {
+                projectId: { type: 'string' },
+                slug: { type: 'string' },
+                expectedRevision: { type: 'integer', minimum: 1 },
+                operations: {
+                    type: 'array', minItems: 1,
+                    items: {
+                        type: 'object',
+                        properties: {
+                            op: { type: 'string', enum: ['add', 'replace', 'rename', 'delete'] },
+                            path: { type: 'string', description: 'Project-relative source/target path' },
+                            to: { type: 'string', description: 'Destination path for rename' },
+                            content: { type: 'string', description: 'Complete text for add/replace' },
+                        },
+                        required: ['op', 'path'],
+                    },
+                },
+            },
+            required: ['projectId', 'slug', 'expectedRevision', 'operations'],
+        },
+        toItem: (params) => makeItem('extension-patch', params, JSON.stringify(params, null, 2)),
+    },
+    {
+        name: 'workshop_rollback_extension',
+        requiresWriter: true,
+        displayName: 'Workshop: Roll Back Managed Extension',
+        description: 'Restore a retained snapshot of a managed UI extension as a new revision. ALWAYS queues for server validation and manual approval.',
+        schema: {
+            type: 'object',
+            properties: {
+                projectId: { type: 'string' },
+                slug: { type: 'string' },
+                expectedRevision: { type: 'integer', minimum: 1 },
+                targetRevision: { type: 'integer', minimum: 1 },
+            },
+            required: ['projectId', 'slug', 'expectedRevision', 'targetRevision'],
+        },
+        toItem: (params) => makeItem('extension-rollback', params, JSON.stringify(params, null, 2)),
     },
     // --- Read-only tools: run immediately in both modes ---
     {
@@ -359,6 +435,41 @@ const TOOL_DEFS = [
             })));
         },
     },
+    {
+        name: 'workshop_list_extension_projects',
+        requiresWriter: true,
+        displayName: 'Workshop: List Managed Extensions',
+        description: 'List Tavernkeeper-managed UI extension projects with projectId, slug, display name, revision, last update, and validation state. Read-only.',
+        schema: { type: 'object', properties: {} },
+        readOnly: true,
+        run: async () => JSON.stringify(await listManagedProjects()),
+    },
+    {
+        name: 'workshop_get_extension_project',
+        requiresWriter: true,
+        displayName: 'Workshop: Read Managed Extension',
+        description: 'Read every text file and the current revision of one managed UI extension. Call before proposing updates. Read-only.',
+        schema: {
+            type: 'object',
+            properties: { projectId: { type: 'string' }, slug: { type: 'string' } },
+            required: ['projectId', 'slug'],
+        },
+        readOnly: true,
+        run: async (params) => JSON.stringify(await getManagedProject(params)),
+    },
+    {
+        name: 'workshop_get_extension_revision',
+        requiresWriter: true,
+        displayName: 'Workshop: Read Extension Revision',
+        description: 'Read a retained managed-extension snapshot by revision. Read-only; use before requesting a rollback.',
+        schema: {
+            type: 'object',
+            properties: { projectId: { type: 'string' }, slug: { type: 'string' }, revision: { type: 'integer', minimum: 1 } },
+            required: ['projectId', 'slug', 'revision'],
+        },
+        readOnly: true,
+        run: async (params) => JSON.stringify(await getManagedRevision(params)),
+    },
 ];
 
 async function runToolItem(item) {
@@ -379,7 +490,7 @@ export function registerWorkshopTools() {
             stealth: false,
             shouldRegister: () => {
                 const settings = getSettings();
-                return settings.enabled && settings.enableTools;
+                return settings.enabled && settings.enableTools && (!def.requiresWriter || getCapabilities().extensionWriter);
             },
             formatMessage: () => `Workshop: ${def.readOnly ? 'reading' : 'preparing'} ${def.displayName.replace('Workshop: ', '').toLowerCase()}…`,
             action: async (params) => {
@@ -442,6 +553,10 @@ export function initToolQueueClicks() {
         if (this.classList.contains('tkw-q-apply')) {
             this.classList.add('disabled');
             const result = await apply(item);
+            if (result.cancelled) {
+                this.classList.remove('disabled');
+                return;
+            }
             result.ok
                 ? toastr.success(result.message, "Tavernkeeper's Workshop")
                 : toastr.error(result.message, "Tavernkeeper's Workshop");

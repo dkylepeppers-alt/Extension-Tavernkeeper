@@ -127,6 +127,10 @@ export async function applyByHash(mesId, hash, { silent = false } = {}) {
         return { ok: false, message: 'Deliverable not found' };
     }
     const result = await apply(item);
+    if (result.cancelled) {
+        decorateMessage(mesId);
+        return result;
+    }
     await setState(message, hash, { status: result.ok ? 'applied' : 'failed', note: result.message, ts: Date.now() });
     decorateMessage(mesId);
     if (!silent) {
@@ -153,7 +157,7 @@ export async function applyAllInMessage(mesId, { includeExecutables = false } = 
         if (item.invalid || state[item.hash]) { results.skipped++; continue; }
         if (isExecutable(item) && !includeExecutables) { results.skipped++; continue; }
         const result = await applyByHash(mesId, item.hash);
-        result.ok ? results.applied++ : results.failed++;
+        result.ok ? results.applied++ : result.cancelled ? results.skipped++ : results.failed++;
     }
     return results;
 }
@@ -183,7 +187,12 @@ function onActionClick(event) {
         const button = event.target.closest('.tkw-apply');
         button.classList.add('disabled');
         button.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
-        applyByHash(mesId, hash);
+        applyByHash(mesId, hash).then(result => {
+            if (result.cancelled) {
+                button.classList.remove('disabled');
+                button.innerHTML = '<i class="fa-solid fa-check"></i><span>Apply</span>';
+            }
+        });
     } else if (event.target.closest('.tkw-dismiss')) {
         const ctx = SillyTavern.getContext();
         const message = ctx.chat?.[mesId];

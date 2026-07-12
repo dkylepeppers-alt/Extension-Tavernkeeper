@@ -1,4 +1,6 @@
 import { getSettings } from './settings.js';
+import { validateManagedItem, applyValidationToken } from './writer-client.js';
+import { renderWriterReview } from './writer-review.js';
 
 // createNewWorldInfo / createWorldInfoEntry are not on getContext(); loaded
 // via absolute dynamic import so a moved module degrades gracefully instead
@@ -230,6 +232,32 @@ async function applyScript(item) {
     return { ok: true, message: `Script executed${pipe ? ` — result: ${String(pipe).slice(0, 120)}` : ''}` };
 }
 
+async function applyManagedExtension(item) {
+    const ctx = SillyTavern.getContext();
+    const validation = await validateManagedItem(item);
+    const html = DOMPurify.sanitize(renderWriterReview({ ...validation, ...item.data }));
+    const approved = await ctx.callGenericPopup(
+        html,
+        ctx.POPUP_TYPE?.CONFIRM ?? 2,
+        '',
+        { wide: true, allowVerticalScrolling: true, okButton: 'Apply changes', cancelButton: 'Cancel' },
+    );
+    if (!approved) return { ok: false, cancelled: true, message: 'Managed extension review cancelled' };
+    const result = await applyValidationToken(validation.validationToken);
+    if (result.reloadRequired) {
+        toastr.info(
+            'Managed extension files changed. Tap here to reload SillyTavern and activate them.',
+            "Tavernkeeper's Workshop",
+            { timeOut: 0, extendedTimeOut: 0, closeButton: true, onclick: () => globalThis.location.reload() },
+        );
+    }
+    return {
+        ok: true,
+        reloadRequired: Boolean(result.reloadRequired),
+        message: `${item.type === 'extension-create' ? 'Created' : item.type === 'extension-adopt' ? 'Adopted' : item.type === 'extension-rollback' ? 'Rolled back' : 'Updated'} managed extension "${result.slug}" to revision ${result.revision}. Reload SillyTavern to activate its code.`,
+    };
+}
+
 const APPLIERS = {
     'card': applyCard,
     'lorebook': applyLorebook,
@@ -237,6 +265,10 @@ const APPLIERS = {
     'qrset': applyQrSet,
     'regex': applyRegex,
     'script': applyScript,
+    'extension-create': applyManagedExtension,
+    'extension-adopt': applyManagedExtension,
+    'extension-patch': applyManagedExtension,
+    'extension-rollback': applyManagedExtension,
 };
 
 /**

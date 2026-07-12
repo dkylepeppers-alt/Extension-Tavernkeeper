@@ -41,6 +41,60 @@ const card = { spec: 'chara_card_v2', spec_version: '2.0', data: { name: 'Nella'
     assert.equal(items[0].type, 'script');
     assert.equal(items[0].invalid, null);
 }
+{
+    const data = {
+        slug: 'tiny-clock',
+        displayName: 'Tiny Clock',
+        files: {
+            'manifest.json': '{"display_name":"Tiny Clock","js":"index.js"}',
+            'index.js': 'console.log("tick")',
+        },
+    };
+    const items = extract(fence('st-extension-create', JSON.stringify(data)));
+    assert.equal(items[0].type, 'extension-create');
+    assert.equal(items[0].name, 'Tiny Clock');
+    assert.equal(items[0].summary, '2 files · new managed extension');
+    assert.equal(items[0].invalid, null);
+    assert.equal(isExecutable(items[0]), true, 'extension source must always require manual approval');
+}
+{
+    const items = extract(fence('st-extension-adopt', JSON.stringify({ slug: 'existing-widget' })));
+    assert.equal(items[0].type, 'extension-adopt');
+    assert.equal(items[0].name, 'existing-widget');
+    assert.equal(items[0].invalid, null);
+    assert.equal(isExecutable(items[0]), true);
+}
+{
+    const data = {
+        projectId: '123e4567-e89b-12d3-a456-426614174000',
+        slug: 'tiny-clock',
+        expectedRevision: 2,
+        operations: [{ op: 'replace', path: 'index.js', content: 'console.log("tock")' }],
+    };
+    const items = extract(fence('st-extension-patch', JSON.stringify(data)));
+    assert.equal(items[0].type, 'extension-patch');
+    assert.equal(items[0].name, 'tiny-clock');
+    assert.equal(items[0].summary, '1 change · revision 2');
+    assert.equal(items[0].invalid, null);
+    assert.equal(isExecutable(items[0]), true);
+}
+{
+    const data = {
+        projectId: '123e4567-e89b-12d3-a456-426614174000',
+        slug: 'tiny-clock',
+        expectedRevision: 3,
+        targetRevision: 1,
+    };
+    const items = extract(fence('st-extension-rollback', JSON.stringify(data)));
+    assert.equal(items[0].type, 'extension-rollback');
+    assert.equal(items[0].summary, 'revision 3 → 1');
+    assert.equal(items[0].invalid, null);
+    assert.equal(isExecutable(items[0]), true);
+}
+{
+    const invalid = makeItem('extension-patch', { slug: 'bad', operations: [] }, '{}');
+    assert.match(invalid.invalid, /projectId/);
+}
 
 // --- Invalid JSON is reported, not thrown ---
 {

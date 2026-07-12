@@ -3,6 +3,7 @@
 // silent breakage.
 
 let capabilities = null;
+let writerAvailable = false;
 
 const CORE_FEATURES = {
     functionTools: 'LLM function tools',
@@ -11,6 +12,7 @@ const CORE_FEATURES = {
     quickReplies: 'Quick Reply sets',
     slashCommands: 'slash commands',
     popups: 'approval popups',
+    extensionWriter: 'managed extension writer companion',
 };
 
 /** True when some registered function tool looks like a web search. */
@@ -34,9 +36,15 @@ export function detectCapabilities(ctx = SillyTavern.getContext()) {
         quickReplies: Boolean(globalThis.quickReplyApi),
         slashCommands: Boolean(ctx.SlashCommandParser && ctx.SlashCommand),
         popups: typeof ctx.callGenericPopup === 'function',
+        extensionWriter: writerAvailable,
         webSearch: hasWebSearchTool(ctx), // optional — knowledge fallback only
     };
     return capabilities;
+}
+
+export function setWriterCapability(available) {
+    writerAvailable = Boolean(available);
+    if (capabilities) capabilities.extensionWriter = writerAvailable;
 }
 
 export function getCapabilities() {

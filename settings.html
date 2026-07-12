@@ -29,7 +29,7 @@
                 <span>Max block size (KB)</span>
                 <input type="number" id="tkw_max_kb" class="text_pole tkw-narrow" min="1" max="4096">
             </div>
-            <small class="tkw-hint">Deliverables that can execute scripts — STscript, Quick Reply sets with auto-execute flags, lorebook entries with an automationId — always require a manual Apply, even in auto mode. Function tools are the primary path (Chat Completion + function calling); tagged fences (```st-card, ```st-lorebook, ```st-wi-entry, ```st-qrset, ```st-regex, ```st-script) are the structured format in plain replies.</small>
+            <small class="tkw-hint">Deliverables that can execute scripts — STscript, Quick Reply sets with auto-execute flags, lorebook entries with an automationId, and every managed-extension change — always require manual approval, even in auto mode. Managed extension creation and updates also require the Tavernkeeper Writer server companion. Function tools are the primary path; tagged st-* fences are the structured fallback.</small>
             <div class="tkw-meta">
                 <small id="tkw_versions"></small>
                 <small id="tkw_version_warning" class="tkw-warning" style="display: none;"></small>

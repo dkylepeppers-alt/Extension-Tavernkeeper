@@ -17,6 +17,11 @@ registers:
 `workshop_create_character`, `workshop_upsert_lorebook`, `workshop_add_lorebook_entry`,
 `workshop_create_qr_set`, `workshop_add_regex_script`, `workshop_run_stscript`.
 
+With the optional **Tavernkeeper Writer** server companion, the Workshop can also run
+`workshop_create_extension`, `workshop_adopt_extension`,
+`workshop_patch_extension`, and `workshop_rollback_extension`. Extension source is
+executable, so these tools always require a validated diff review and manual approval.
+
 **Read tools** — run immediately in both modes, so the model can check reality before
 creating or merging:
 
@@ -27,6 +32,8 @@ creating or merging:
 | `workshop_list_lorebooks` / `workshop_get_lorebook` | world file names; one book's entry digest |
 | `workshop_list_qr_sets` / `workshop_get_qr_set` | Quick Reply sets; one set's buttons and flags |
 | `workshop_list_regex_scripts` | global regex scripts digest |
+| `workshop_list_extension_projects` | managed extension IDs, folders, revisions, and status |
+| `workshop_get_extension_project` / `workshop_get_extension_revision` | current or retained extension source |
 
 Pending tool calls survive reloads (stored per chat) — review them any time with
 `/workshop-queue` or the toast that appears after generation.
@@ -55,10 +62,11 @@ extension updates and announce themselves with a changelog toast.
 - **Auto mode** — deliverables apply as they arrive, with a toast per item. Toggle via
   the wand menu ("Workshop: auto-apply"), the settings panel, or `/workshop-mode auto`.
 
-**Script-capable deliverables always require a manual Apply, even in auto mode**: raw
+**Executable deliverables always require a manual Apply, even in auto mode**: raw
 STscript, Quick Reply sets carrying auto-execute flags (`executeOnAi`,
 `executeOnStartup`, …), and lorebook entries with an `automationId` — all of these can
-execute commands, so none of them auto-apply.
+execute commands, so none of them auto-apply. Managed-extension creation, adoption,
+updates, and rollbacks are also always manual because their JavaScript runs after reload.
 
 ## Deliverable protocol (tagged fences)
 
@@ -75,6 +83,36 @@ contains ``` lines goes in a longer (four-backtick) fence.
 | ` ```st-qrset ` | `{"name": "...", "qrList": [{"label": "...", "message": "/..."}]}` | Quick Reply set created (replaces same-named set) |
 | ` ```st-regex ` | one regex script object (`scriptName`, `findRegex`, `replaceString`, ...) | global regex script added/updated by name |
 | ` ```st-script ` | raw STscript starting with `/` | executed once on Apply |
+| ` ```st-extension-create ` | `{"slug":"...","displayName":"...","files":{"manifest.json":"...","index.js":"..."}}` | reviewed managed extension creation |
+| ` ```st-extension-adopt ` | `{"slug":"existing-folder"}` | reviewed ownership of an existing extension |
+| ` ```st-extension-patch ` | project identity, expected revision, and add/replace/rename/delete operations | reviewed atomic update |
+| ` ```st-extension-rollback ` | project identity, expected revision, and retained target revision | reviewed rollback |
+
+## Managed extension writer
+
+The writer is a separate SillyTavern server plugin because browser extensions cannot
+write folders. Server plugins are not sandboxed; inspect the bundled code and enable it
+only on a SillyTavern installation you control.
+
+Install or update both the UI extension and companion with the idempotent setup script:
+
+```bash
+bash scripts/setup-writer.sh --sillytavern-root /path/to/SillyTavern --dry-run
+bash scripts/setup-writer.sh --sillytavern-root /path/to/SillyTavern
+```
+
+Then set `enableServerPlugins: true` in SillyTavern's `config.yaml` and restart the
+server. The setup script intentionally does not edit the config. It targets
+`default-user`; pass `--user HANDLE` for another user. Existing companion code is moved
+to a timestamped backup before updates.
+
+The companion writes only beneath the authenticated user's `extensions/` directory. A
+folder is writable only when its server-created marker agrees with the per-user registry.
+It rejects path traversal, absolute paths, symlinks, hidden control files, binary data,
+invalid manifests, stale revisions, tampered tokens, and changes made after review.
+Transactions are staged and atomically swapped. The newest 10 pre-change snapshots are
+retained per project; rollback is reviewed and creates a new revision. Reload
+SillyTavern after a successful change to activate the new code.
 
 ## Slash commands
 
@@ -137,6 +175,12 @@ Run the test suite after making changes (also runs in CI):
 node tests/validate-protocol.mjs   # fence parsing, hashing, executable detection
 node tests/validate-knowledge.mjs  # knowledge schema, search, primer
 node tests/validate-settings.mjs   # settings migrations, capability detection
+node tests/validate-writer.mjs     # filesystem security, transactions, snapshots
+node tests/validate-writer-routes.mjs # server route contract
+node tests/validate-writer-client.mjs # browser API client
+node tests/validate-writer-review.mjs # escaped diff review rendering
+node tests/validate-extension-tools.mjs # managed function tools
+node tests/validate-setup.mjs      # setup dry-run/install/update
 node tools/build-card.mjs          # rebuild the PNG after editing the card JSON
 node tests/validate-card.mjs       # card JSON + PNG chunks + README links
 ```
@@ -145,5 +189,5 @@ node tests/validate-card.mjs       # card JSON + PNG chunks + README links
 
 - Applied/dismissed state is stored per message in `message.extra.tk_workshop`, keyed by a
   content hash — swipes and edits re-offer only genuinely new content; nothing double-applies.
-- No automatic undo: each success note names exactly what was created and where to manage it.
+- Ordinary Workshop artifacts have no automatic undo. Managed extensions retain 10 reviewed rollback snapshots.
 - Regex scripts take effect immediately; the Regex settings drawer list refreshes on reload.

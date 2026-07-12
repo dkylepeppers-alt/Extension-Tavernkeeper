@@ -10,7 +10,7 @@ const makeContext = (extensionSettings = {}) => ({
 });
 
 const { getSettings, MODULE } = await import('../src/settings.js');
-const { detectCapabilities, compatSummary } = await import('../src/compat.js');
+const { detectCapabilities, compatSummary, setWriterCapability } = await import('../src/compat.js');
 
 // --- Fresh install: defaults seeded at the current schema version ---
 {
@@ -75,7 +75,11 @@ const { detectCapabilities, compatSummary } = await import('../src/compat.js');
     assert.equal(caps.slashCommands, true);
     assert.equal(caps.popups, true);
     assert.equal(caps.webSearch, true);
-    assert.match(compatSummary(caps), /All features available/);
+    assert.equal(caps.extensionWriter, false);
+    setWriterCapability(true);
+    const withWriter = detectCapabilities(fullContext);
+    assert.equal(withWriter.extensionWriter, true);
+    assert.match(compatSummary(withWriter), /All features available/);
 
     delete globalThis.quickReplyApi;
     const bare = detectCapabilities({});

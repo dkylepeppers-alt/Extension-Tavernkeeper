@@ -4,6 +4,8 @@ import { initInlineUi, applyAllInMessage, decorateAllMessages } from './src/inli
 import { registerWorkshopTools, initToolQueueClicks, showToolQueuePopup } from './src/tools.js';
 import { loadKnowledge, getKnowledge, updateProtocolInjection, notifyKnowledgeState } from './src/knowledge.js';
 import { detectCapabilities, compatSummary } from './src/compat.js';
+import { setWriterCapability } from './src/compat.js';
+import { probeWriter } from './src/writer-client.js';
 
 // Derived from this module's URL so any install folder name works.
 const EXTENSION_BASE = new URL('.', import.meta.url);
@@ -69,6 +71,7 @@ async function renderVersionPanel() {
     }
     $('#tkw_versions').text(parts.join(' · '));
     $('#tkw_version_warning').text(warning).toggle(Boolean(warning));
+    setWriterCapability(await probeWriter());
     $('#tkw_compat').text(compatSummary());
 }
 

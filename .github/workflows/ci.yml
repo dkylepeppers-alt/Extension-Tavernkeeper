@@ -19,5 +19,13 @@ jobs:
         run: node tests/validate-knowledge.mjs
       - name: Settings + compat tests
         run: node tests/validate-settings.mjs
+      - name: Managed extension writer tests
+        run: |
+          node tests/validate-writer.mjs
+          node tests/validate-writer-routes.mjs
+          node tests/validate-writer-client.mjs
+          node tests/validate-writer-review.mjs
+          node tests/validate-extension-tools.mjs
+          node tests/validate-setup.mjs
       - name: Card + assets validation
         run: node tests/validate-card.mjs

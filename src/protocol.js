@@ -7,6 +7,10 @@ export const TYPE_INFO = {
     'qrset': { icon: 'fa-bolt', label: 'Quick Reply Set' },
     'regex': { icon: 'fa-shuffle', label: 'Regex Script' },
     'script': { icon: 'fa-terminal', label: 'STscript' },
+    'extension-create': { icon: 'fa-folder-plus', label: 'Managed Extension' },
+    'extension-adopt': { icon: 'fa-folder-tree', label: 'Adopt Extension' },
+    'extension-patch': { icon: 'fa-code-branch', label: 'Extension Update' },
+    'extension-rollback': { icon: 'fa-clock-rotate-left', label: 'Extension Rollback' },
 };
 
 const TAG_TYPES = {
@@ -16,6 +20,10 @@ const TAG_TYPES = {
     'st-qrset': 'qrset',
     'st-regex': 'regex',
     'st-script': 'script',
+    'st-extension-create': 'extension-create',
+    'st-extension-adopt': 'extension-adopt',
+    'st-extension-patch': 'extension-patch',
+    'st-extension-rollback': 'extension-rollback',
 };
 
 // Matches every fenced code block; blockIndex counts ALL fences so it maps 1:1
@@ -119,6 +127,48 @@ export function makeItem(type, data, raw, blockIndex = -1, occurrence = 0) {
             item.summary = lines > 1 ? `${lines} lines` : 'one-liner';
             break;
         }
+        case 'extension-create': {
+            const files = data?.files;
+            if (!data?.slug || !data?.displayName || !files || typeof files !== 'object' || Array.isArray(files)) {
+                item.invalid = 'Extension creation needs "slug", "displayName", and a "files" object';
+                break;
+            }
+            const count = Object.keys(files).length;
+            if (!count) {
+                item.invalid = 'Extension creation needs at least one file';
+                break;
+            }
+            item.name = data.displayName;
+            item.summary = `${count} ${count === 1 ? 'file' : 'files'} · new managed extension`;
+            break;
+        }
+        case 'extension-adopt': {
+            if (!data?.slug) {
+                item.invalid = 'Extension adoption needs "slug"';
+                break;
+            }
+            item.name = data.slug;
+            item.summary = 'claim existing extension for managed updates';
+            break;
+        }
+        case 'extension-patch': {
+            if (!data?.projectId || !data?.slug || !Number.isInteger(data?.expectedRevision) || !Array.isArray(data?.operations) || !data.operations.length) {
+                item.invalid = 'Extension patch needs "projectId", "slug", integer "expectedRevision", and non-empty "operations"';
+                break;
+            }
+            item.name = data.slug;
+            item.summary = `${data.operations.length} ${data.operations.length === 1 ? 'change' : 'changes'} · revision ${data.expectedRevision}`;
+            break;
+        }
+        case 'extension-rollback': {
+            if (!data?.projectId || !data?.slug || !Number.isInteger(data?.expectedRevision) || !Number.isInteger(data?.targetRevision)) {
+                item.invalid = 'Extension rollback needs "projectId", "slug", integer "expectedRevision", and integer "targetRevision"';
+                break;
+            }
+            item.name = data.slug;
+            item.summary = `revision ${data.expectedRevision} → ${data.targetRevision}`;
+            break;
+        }
         default:
             item.invalid = `Unknown deliverable type "${type}"`;
     }
@@ -154,6 +204,11 @@ export function isExecutable(item) {
         }
         case 'wi-entry':
             return entryHasAutomation(item.data?.entry);
+        case 'extension-create':
+        case 'extension-adopt':
+        case 'extension-patch':
+        case 'extension-rollback':
+            return true;
         default:
             return false;
     }
