@@ -11,7 +11,7 @@ import { probeWriter } from './src/writer-client.js';
 const EXTENSION_BASE = new URL('.', import.meta.url);
 const EXTENSION_FOLDER = EXTENSION_BASE.pathname.replace(/^.*\/scripts\/extensions\//, '').replace(/\/$/, '');
 const LOG_PREFIX = "[Tavernkeeper's Workshop]";
-const EXPECTED_CARD_VERSION = '3.0';
+const EXPECTED_CARD_VERSIONS = { Tavernkeeper: '3.0', Chronicler: '1.0' };
 
 function lastAiMessageId() {
     const ctx = SillyTavern.getContext();
@@ -60,15 +60,17 @@ async function renderVersionPanel() {
     if (knowledge) parts.push(`knowledge v${knowledge.version}`);
 
     const ctx = SillyTavern.getContext();
-    const card = (ctx.characters ?? []).find(c => c.name === 'Tavernkeeper');
-    let warning = '';
-    if (card) {
+    const warnings = [];
+    for (const [name, expectedVersion] of Object.entries(EXPECTED_CARD_VERSIONS)) {
+        const card = (ctx.characters ?? []).find(c => c.name === name);
+        if (!card) continue;
         const cardVersion = card.data?.character_version ?? '?';
-        parts.push(`Tavernkeeper card v${cardVersion}`);
-        if (cardVersion !== EXPECTED_CARD_VERSION) {
-            warning = `Imported Tavernkeeper card is v${cardVersion}; this extension ships v${EXPECTED_CARD_VERSION} — reimport the bundled card.`;
+        parts.push(`${name} card v${cardVersion}`);
+        if (cardVersion !== expectedVersion) {
+            warnings.push(`Imported ${name} card is v${cardVersion}; this extension ships v${expectedVersion} — reimport the bundled card.`);
         }
     }
+    const warning = warnings.join(' ');
     $('#tkw_versions').text(parts.join(' · '));
     $('#tkw_version_warning').text(warning).toggle(Boolean(warning));
     setWriterCapability(await probeWriter());
