@@ -28,4 +28,6 @@ jobs:
           node tests/validate-extension-tools.mjs
           node tests/validate-setup.mjs
       - name: Card + assets validation
-        run: node tests/validate-card.mjs
+        run: |
+          node tests/validate-card.mjs
+          node tests/validate-chronicler-card.mjs

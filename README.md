@@ -146,6 +146,24 @@ Import only one card format; the PNG and JSON contain the same Tavernkeeper vers
 data. Install this extension separately using the instructions below, then reload
 SillyTavern.
 
+### Chronicler — the creative-writing companion
+
+**Chronicler** is a second card that works like a sub-agent to Tavernkeeper: a
+prose-only creative writer for character descriptions, personalities, greetings,
+lorebook entry text, scenarios, and world lore. It delivers finished passages in plain
+`text` fences — inert by design, so the Workshop never applies them — and never emits
+`st-*` fences or JSON. Pair both cards in a group chat: Chronicler writes the words,
+the keeper structures and applies them. With the extension installed, Chronicler uses
+only the read tools (`workshop_search_knowledge`, `workshop_get_character`,
+`workshop_get_lorebook`) to keep new writing consistent with existing material.
+
+- [Import Chronicler.png](cards/Chronicler.png) for the complete card. Its portrait is a
+  generated placeholder gradient (`node tools/make-placeholder-avatar.mjs`).
+- [Import the Character Card V2 JSON](cards/Chronicler.chara_card_v2.json) to provide
+  your own avatar.
+- [View the avatar generation prompt](cards/CHRONICLER_AVATAR_PROMPT.md) to produce real
+  art, then run `node tools/build-card.mjs Chronicler` to re-embed the card data.
+
 ## Install
 
 In SillyTavern, open **Extensions → Install extension**, paste this repository URL, and
@@ -181,8 +199,9 @@ node tests/validate-writer-client.mjs # browser API client
 node tests/validate-writer-review.mjs # escaped diff review rendering
 node tests/validate-extension-tools.mjs # managed function tools
 node tests/validate-setup.mjs      # setup dry-run/install/update
-node tools/build-card.mjs          # rebuild the PNG after editing the card JSON
-node tests/validate-card.mjs       # card JSON + PNG chunks + README links
+node tools/build-card.mjs          # rebuild the card PNGs after editing card JSON
+node tests/validate-card.mjs       # Tavernkeeper card JSON + PNG chunks + README links
+node tests/validate-chronicler-card.mjs # Chronicler card JSON + PNG chunks + README links
 ```
 
 ## Notes
